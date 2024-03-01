@@ -1,1 +1,1 @@
-pub mod split;
+pub(crate) mod chunk;

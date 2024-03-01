@@ -1,10 +1,10 @@
 // use alloc::vec::{self, Vec};
-use std::vec;
+use crate::{FraughtTools, Frayed, FrayedTools};
 use std::cell::{Cell, RefCell};
-use crate::{Frayed, FraughtTools, FrayedTools};
+use std::vec;
 
 #[derive(Clone)]
-struct UnfusedInner<I>
+struct ChunkInner<I>
 where
     I: Iterator,
 {
@@ -28,7 +28,7 @@ where
     dropped_group: usize,
 }
 
-impl<I> UnfusedInner<I>
+impl<I> ChunkInner<I>
 where
     I: Iterator,
 {
@@ -134,7 +134,7 @@ where
                     if self.top_group != self.dropped_group {
                         group.push(elt);
                     }
-                },
+                }
                 None => {
                     self.current_index += 1;
                     break;
@@ -180,35 +180,9 @@ where
         }
         elt
     }
-
-    // Request the just started groups' key.
-    //
-    // `client`: Index of group
-    //
-    // **Panics** if no group key is available.
-    // fn group_key(&mut self, client: usize) -> K {
-    //     // This can only be called after we have just returned the first
-    //     // element of a group.
-    //     // Perform this by simply buffering one more element, grabbing the
-    //     // next key.
-    //     debug_assert!(!self.done);
-    //     debug_assert!(client == self.top_group);
-    //     debug_assert!(self.current_key.is_some());
-    //     debug_assert!(self.current_elt.is_none());
-    //     let old_key = self.current_key.take().unwrap();
-    //     if let Some(elt) = self.next_element() {
-    //         let key = self.key.call_mut(&elt);
-    //         if old_key != key {
-    //             self.top_group += 1;
-    //         }
-    //         self.current_key = Some(key);
-    //         self.current_elt = Some(elt);
-    //     }
-    //     old_key
-    // }
 }
 
-impl<I> UnfusedInner<I>
+impl<I> ChunkInner<I>
 where
     I: Iterator,
 {
@@ -221,10 +195,10 @@ where
     }
 }
 
-/// `SplitUnfused` is the storage for the lazy grouping operation.
+/// `Chunk` is the storage for the lazy grouping operation.
 ///
 /// If the groups are consumed in their original order, or if each
-/// group is dropped without keeping it around, then `SplitUnfused` uses
+/// group is dropped without keeping it around, then `Chunk` uses
 /// no allocations. It needs allocations only if several group iterators
 /// are alive at the same time.
 ///
@@ -235,22 +209,22 @@ where
 ///
 /// See [`.group_by()`](crate::Itertools::group_by) for more information.
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-pub struct SplitUnfused<I>
+pub struct Chunk<I>
 where
     I: Iterator,
 {
-    inner: RefCell<UnfusedInner<I>>,
+    inner: RefCell<ChunkInner<I>>,
     // the group iterator's current index. Keep this in the main value
     // so that simultaneous iterators all use the same state.
     index: Cell<usize>,
 }
 
-// pub struct Prepend<I,F> {
+// pub struct Map<I,F> {
 //     into: I,
 //     f: F,
 // }
 
-// impl<I,F> Prepend<I,F> {
+// impl<I,F> Map<I,F> {
 //     pub fn new(into: I, f: F) -> Self {
 //         Self {
 //             into,
@@ -259,63 +233,38 @@ where
 //     }
 // }
 
-// impl<I: IntoIterator, F> IntoIterator for Prepend<I,F>
+// impl<B, I: IntoIterator, F> IntoIterator for Map<I,F>
 //     where
-//     F: Vec<I::Item> {
+//     F: FnMut(I::Item) -> B {
 //     type Item = B;
 //     type IntoIter = std::iter::Map<I::IntoIter, F>;
 
 //     fn into_iter(self) -> Self::IntoIter {
-//         self.into.into_iter().map(|x| self.f)
+//         self.into.into_iter().map(self.f)
 //     }
 // }
 
-pub struct Map<I,F> {
-    into: I,
-    f: F,
-}
+// pub trait IntoIteratorTools: IntoIterator {
+//     fn map_into<B, F>(self, f: F) -> Map<Self, F>
+//         where Self: Sized,
+//         F: FnMut(Self::Item) -> B,
+//     {
+//         Map {
+//             into: self,
+//             f,
+//         }
+//     }
+// }
 
-impl<I,F> Map<I,F> {
-    pub fn new(into: I, f: F) -> Self {
-        Self {
-            into,
-            f,
-        }
-    }
-}
-
-impl<B, I: IntoIterator, F> IntoIterator for Map<I,F>
-    where
-    F: FnMut(I::Item) -> B {
-    type Item = B;
-    type IntoIter = std::iter::Map<I::IntoIter, F>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.into.into_iter().map(self.f)
-    }
-}
-
-pub trait IntoIteratorTools: IntoIterator {
-    fn map_into<B, F>(self, f: F) -> Map<Self, F>
-        where Self: Sized,
-        F: FnMut(Self::Item) -> B,
-    {
-        Map {
-            into: self,
-            f,
-        }
-    }
-}
-
-impl<T: ?Sized> IntoIteratorTools for T where T: IntoIterator {}
+// impl<T: ?Sized> IntoIteratorTools for T where T: IntoIterator {}
 
 /// Create a new
-pub fn new<J>(iter: J) -> SplitUnfused<J::IntoIter>
+pub fn new<J>(iter: J) -> Chunk<J::IntoIter>
 where
     J: IntoIterator,
 {
-    SplitUnfused {
-        inner: RefCell::new(UnfusedInner {
+    Chunk {
+        inner: RefCell::new(ChunkInner {
             // key: f,
             iter: iter.into_iter(),
             current_index: 0,
@@ -332,13 +281,12 @@ where
     }
 }
 
-impl<I> SplitUnfused<I>
+impl<I> Chunk<I>
 where
     I: Iterator,
 {
     /// `client`: Index of group that requests next element
-    fn step(&self, client: usize) -> Option<I::Item>
-    {
+    fn step(&self, client: usize) -> Option<I::Item> {
         self.inner.borrow_mut().step(client)
     }
 
@@ -352,7 +300,7 @@ where
     }
 }
 
-impl<'a, I> IntoIterator for &'a SplitUnfused<I>
+impl<'a, I> IntoIterator for &'a Chunk<I>
 where
     I: Iterator,
     I::Item: 'a,
@@ -377,7 +325,7 @@ where
     I: Iterator,
     I::Item: 'a,
 {
-    parent: &'a SplitUnfused<I>,
+    parent: &'a Chunk<I>,
 }
 
 impl<'a, I> Iterator for Groups<'a, I>
@@ -392,12 +340,10 @@ where
         let index = self.parent.index.get();
         self.parent.index.set(index + 1);
         let inner = &mut *self.parent.inner.borrow_mut();
-        inner.step(index).map(|elt| {
-            Group {
-                parent: self.parent,
-                index,
-                first: Some(elt),
-            }
+        inner.step(index).map(|elt| Group {
+            parent: self.parent,
+            index,
+            first: Some(elt),
         })
     }
 }
@@ -410,7 +356,7 @@ where
     I: Iterator,
     I::Item: 'a,
 {
-    parent: &'a SplitUnfused<I>,
+    parent: &'a Chunk<I>,
     index: usize,
     first: Option<I::Item>,
 }
@@ -446,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_vec_into_iter_clone() {
-        let v = vec![1,2,3];
+        let v = vec![1, 2, 3];
         let i = v.into_iter();
         let c = i.clone();
         assert_eq!(c.count(), 3);
@@ -465,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let v = vec![1,2,3];
+        let v = vec![1, 2, 3];
         let split = v.into_iter().prefix(SevenIter(0)).chunk();
         let mut iters = split.into_iter();
         let first = iters.next().unwrap();
@@ -475,27 +421,26 @@ mod tests {
         assert!(iters.next().is_none());
 
         let v: Vec<_> = third.collect();
-        assert_eq!(v, [1,2,3,7]);
+        assert_eq!(v, [1, 2, 3, 7]);
         let v: Vec<_> = second.collect();
-        assert_eq!(v, [1,2,3,4,5]);
+        assert_eq!(v, [1, 2, 3, 4, 5]);
         let v: Vec<_> = first.collect();
-        assert_eq!(v, [1,2,3,1,2]);
+        assert_eq!(v, [1, 2, 3, 1, 2]);
     }
-
 
     #[test]
     fn chunk_unfused() {
         let v: Vec<_> = SevenIter(0).collect();
-        assert_eq!(v, [1,2]);
+        assert_eq!(v, [1, 2]);
         let split = SevenIter(0).chunk();
         let mut iters = split.into_iter();
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
-        assert_eq!(v, [1,2]);
+        assert_eq!(v, [1, 2]);
 
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
-        assert_eq!(v, [4,5]);
+        assert_eq!(v, [4, 5]);
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
         assert_eq!(v, [7]);
@@ -521,12 +466,12 @@ mod tests {
     #[test]
     fn split_unfused_drop_second() {
         let v: Vec<_> = SevenIter(0).collect();
-        assert_eq!(v, [1,2]);
+        assert_eq!(v, [1, 2]);
         let split = SevenIter(0).chunk();
         let mut iters = split.into_iter();
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
-        assert_eq!(v, [1,2]);
+        assert_eq!(v, [1, 2]);
 
         // Drop this one.
         let _ = iters.next();
@@ -549,8 +494,8 @@ mod tests {
         let v: Vec<_> = third.collect();
         assert_eq!(v, [7]);
         let v: Vec<_> = second.collect();
-        assert_eq!(v, [4,5]);
+        assert_eq!(v, [4, 5]);
         let v: Vec<_> = first.collect();
-        assert_eq!(v, [1,2]);
+        assert_eq!(v, [1, 2]);
     }
 }

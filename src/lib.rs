@@ -23,23 +23,28 @@
 //! sequences. We are not barbarians, however, so we consider a frayed iterator
 //! to be exhausted when it returns two `None`s consecutively.
 //!
-pub mod frayed;
-pub mod fraught;
-use crate::fraught::prefix::UnfusedPrefix;
-use crate::frayed::split::{self, SplitUnfused};
+mod fraught;
+mod frayed;
+use crate::fraught::prefix::Prefix;
+use crate::frayed::chunk::{self, Chunk};
 
 /// Marker trait
-pub trait Frayed: Iterator { }
+pub trait Frayed: Iterator {}
 
 /// Adapter struct
-pub struct FrayedIter<I: Iterator> { pub unfused: I }
+pub struct FrayedIter<I: Iterator> {
+    pub unfused: I,
+}
 
 /// Frayed tools only operate on iterators marked as `Frayed`.
 pub trait FrayedTools: Frayed {
     /// Turn a frayed iterator into an iterator of iterator, that is, "chunks"
     /// that are no longer frayed.
-    fn chunk(self) -> SplitUnfused<Self> where Self: Sized {
-        split::new(self)
+    fn chunk(self) -> Chunk<Self>
+    where
+        Self: Sized,
+    {
+        chunk::new(self)
     }
 }
 
@@ -47,16 +52,20 @@ pub trait FrayedTools: Frayed {
 /// iterators.
 pub trait FraughtTools: Iterator {
     /// Use this iterator as a prefix for a frayed iterator with many postfixes.
-    fn prefix<I>(self, postfixes: I) -> UnfusedPrefix<Self, I>
-    where I: Frayed<Item = Self::Item>,
-          Self: Sized + Clone
+    fn prefix<I>(self, postfixes: I) -> Prefix<Self, I>
+    where
+        I: Frayed<Item = Self::Item>,
+        Self: Sized + Clone,
     {
-        UnfusedPrefix::new(self, postfixes)
+        Prefix::new(self, postfixes)
     }
 
     /// Mark this iterator as `Frayed`. Can then use the `FrayedTools` extension
     /// methods.
-    fn frayed(self) -> FrayedIter<Self> where Self: Sized {
+    fn frayed(self) -> FrayedIter<Self>
+    where
+        Self: Sized,
+    {
         FrayedIter { unfused: self }
     }
 }
@@ -72,7 +81,7 @@ impl<I: Iterator> Iterator for FrayedIter<I> {
     }
 }
 
-impl<I: Iterator> Frayed for FrayedIter<I> { }
+impl<I: Iterator> Frayed for FrayedIter<I> {}
 
 // #[cfg(test)]
 // mod tests {
