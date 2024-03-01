@@ -1,1 +1,3 @@
-pub(crate) mod chunk;
+pub mod chunk;
+
+pub use chunk::Chunk;

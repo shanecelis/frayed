@@ -22,10 +22,11 @@ where
         }
     }
 
-    /// Will provide prefix even if the underlying iterator is empty().
-    pub fn require_prefix(mut self) -> Self {
+    /// If enabled, will provide prefix even if the underlying iterator is
+    /// empty(). By default it is disabled.
+    pub fn prefix_empty(mut self, enable: bool) -> Self {
         if self.consume.is_none() {
-            self.consume = Some(self.prefix.clone());
+            self.consume = enable.then(|| self.prefix.clone());
         }
         self
     }
