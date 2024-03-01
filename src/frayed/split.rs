@@ -1,7 +1,7 @@
 // use alloc::vec::{self, Vec};
 use std::vec;
 use std::cell::{Cell, RefCell};
-use crate::{Frayed, FraughtTools, FrayedTools, prefix_unfused::UnfusedPrefix};
+use crate::{Frayed, FraughtTools, FrayedTools};
 
 #[derive(Clone)]
 struct UnfusedInner<I>
@@ -447,8 +447,8 @@ mod tests {
     #[test]
     fn test_vec_into_iter_clone() {
         let v = vec![1,2,3];
-        let mut i = v.into_iter();
-        let mut c = i.clone();
+        let i = v.into_iter();
+        let c = i.clone();
         assert_eq!(c.count(), 3);
         assert_eq!(i.count(), 3);
     }

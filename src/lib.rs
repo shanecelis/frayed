@@ -23,10 +23,10 @@
 //! sequences. We are not barbarians, however, so we consider a frayed iterator
 //! to be exhausted when it returns two `None`s consecutively.
 //!
-mod prefix_unfused;
-mod split_unfused;
-use crate::prefix_unfused::UnfusedPrefix;
-use crate::split_unfused::SplitUnfused;
+pub mod frayed;
+pub mod fraught;
+use crate::fraught::prefix::UnfusedPrefix;
+use crate::frayed::split::{self, SplitUnfused};
 
 /// Marker trait
 pub trait Frayed: Iterator { }
@@ -39,7 +39,7 @@ pub trait FrayedTools: Frayed {
     /// Turn a frayed iterator into an iterator of iterator, that is, "chunks"
     /// that are no longer frayed.
     fn chunk(self) -> SplitUnfused<Self> where Self: Sized {
-        split_unfused::new(self)
+        split::new(self)
     }
 }
 
@@ -74,11 +74,11 @@ impl<I: Iterator> Iterator for FrayedIter<I> {
 
 impl<I: Iterator> Frayed for FrayedIter<I> { }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn it_works() {
-    }
-}
+//     #[test]
+//     fn it_works() {
+//     }
+// }
