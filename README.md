@@ -1,10 +1,20 @@
 # Frayed
 
-Unfused and unashamed iterators
+Unfused and unashamed iterators under the hood, conventional iterators out the
+door
 
 # Introduction
 
-Iterators come in few varieties: fused, unfused, and now frayed.
+Rust iterators[^0] come in a few varieties: fused, unfused, and now frayed. The variety
+is determined by how it behaves after `.next()` returns `None`.
+
+```
+pub trait Iterator {
+    type Item;
+    fn next(&mut self) -> Option<Self::Item>;
+}
+```
+
 
 ## Fused
 
@@ -21,36 +31,25 @@ expected to be exhausted at the first `None`.
 
 ## Frayed
 
-Frayed iterators delight in returning elements after the first, second, or even
-third `None`. They can economically be used to represent many sequences. They
-are not indefatigably barbaric, however; a frayed iterator is said to be
-exhausted when it returns two `None`s consecutively.
-
-# Motivation
-
-When writing an iterator implementation by hand that represents multiple
-sequences, it's usually easy to write a `Iterator<Item = Vec<T>>` even though
-allocating and collecting a `Vec` isn't essential or even desired. However,
-writing a `Iterator<Item = SubIter<T>>` can require some pretty tricky machinery
-if one hopes to respect the total API that entails, e.g., the `SubIter` can be
-consumed out of order or dropped. 
-
-If I write a "frayed" iterator `Iterator<Item = T>`, where the `None` represents
-the end of a subsequence, that's often not difficult. One can consume these
-iterators with a little care but they remain unconventional. The initial
-motivation of this crate was to make it easy for "frayed" iterators to be
-consumed by the uninitiated.
+Frayed iterators delight in furnishing further elements after returning `None`.
+They can economically represent multiple sequences. They are not indefatigably
+barbaric, however; a frayed iterator is expected to be exhausted when it returns
+two `None`s consecutively.
 
 # Usage
 
-Suppose we have an iterator that represents multiple subsequences.
+Suppose we have an iterator that represents multiple sequences. For instance
+`SevenIter`is a unfused iterator that represents these sequences: `[1, 2]`, `[4,
+5]`, and `[7]`.
 
 ```compile rust
 use frayed::{Frayed, FrayedTools, FraughtTools};
 
-struct SevenIter(u8);
 /// This iterator skips every number divisible by 3 up to seven.
-/// SevenIter(0) returns 1, 2, None, 3, 4, None, 7, None, None, ...
+struct SevenIter(u8);
+
+/// SevenIter's .next() returns Some(1), Some(2), None, Some(4), Some(5), None, 
+/// Some(7), None, None, and so on.
 impl Iterator for SevenIter {
     type Item = u8;
     fn next(&mut self) -> Option<u8> {
@@ -58,11 +57,10 @@ impl Iterator for SevenIter {
         (self.0 % 3 != 0 && self.0 <= 7).then_some(self.0)
     }
 }
-// Mark iterator as `Frayed`. Can also use `.frayed()` method.
-// impl Frayed for SevenIter {}
 
-/// Mark iterator as frayed. Can also impl the `Frayed` marker trait.
+/// Mark iterator with `.frayed() or impl the `Frayed` marker trait.
 let frayed_iter = SevenIter(0).frayed();
+/// Deal with the frayed iterator in its natural "chunks."
 for subiter in &frayed_iter.chunk() {
     for i in subiter {
         print!("{i} ");
@@ -71,10 +69,24 @@ for subiter in &frayed_iter.chunk() {
 }
 ```
 
-`FrayedTools` has extension methods for iterators marked `Frayed`. Why restrict
-these extension to only frayed iterators? Because dealing an iterator that
-conceptually represents a bunch of iterators can be confusing. This way the
-compiler can help us. 
+# Extensions 
+
+## FrayedTools
+
+`FrayedTools` extends iterators marked `Frayed`. 
+
+## FraughtTools
+
+`FraughtTools` extends regular iterators but often either accepts frayed
+iterators as arguments or returns frayed iterators.
+
+# Q&A
+
+## Why restrict FrayedTools to only Frayed iterators? 
+
+Because dealing with an iterator that conceptually represents many iterators is
+confusing: Sometimes you want to map over all the elements. Sometimes you want
+to map over the subsequences. This way the compiler can help us.
 
 For instance if we forget to mark our iterator as "frayed", we can't "chunk" it.
 
@@ -83,7 +95,86 @@ let frayed_iter = SevenIter(0); // .frayed();
 let _ = &frayed_iter.chunk(); // Not marked frayed. No `chunk()` method.
 ```
 
+## Chunk isn't an iterator. How can I "map" over it?
+
+`Chunk` implements `IntoIterator` for `&Chunk`. The problems appear when one
+wants to return a `Chunk` but say `.map()` its output. If one can do what they
+need with the underlying frayed iterator, use `chunk.into_inner()` to retrieve
+it, process it, and consider `.chunk()`-ing it again. 
+
+If one wants to process the iterators and not the underlying elements, that
+remains an open question as to how best to do that. Perhaps `Chunk` itself
+could provide a `map<F,Y>(self, f: F) -> Map<Chunk<Iter<Item=X>>, F, Y> where F: FnMut(Iter<Item=X>) -> Y)` function.
+
+# Motivation
+
+When writing an iterator implementation by hand that represents multiple
+sequences, it is usually easy to write a `Iterator<Item = Vec<T>>` even though
+allocating and collecting a `Vec` is not essential or desired. However, writing a
+`Iterator<Item = SubIter<T>>` requires tricky machinery[^1] if one hopes to
+respect the API that entails, e.g., the `SubIter`s can be consumed out of order
+or dropped.
+
+If one writes instead a "frayed" iterator `Iterator<Item = T>`---where the
+`None` represents the end of a subsequence not the end of the iterator---that is
+often much easier. One can consume these iterators with a some care but they
+remain unconventional and surprising.
+
+```compile rust
+fn raw_consume_unfused<T: std::fmt::Display>(frayed: impl Iterator<Item = T>) {
+    let mut frayed = frayed.peekable();
+    loop {
+        // Consume the subsequence.
+        for i in frayed.by_ref() {
+            print!("{} ", i);
+        }
+        println!();
+        // Check for second None that means frayed iterator is exhausted.
+        if frayed.peek().is_none() {
+            break;
+        }
+    }
+}
+```
+
+The initial motivation of this crate is to make it easy for "frayed" iterators
+to be consumed by the uninitiated. Consider instead this code:
+
+```compile rust
+use frayed::*;
+fn raw_consume_frayed<T: std::fmt::Display>(frayed: impl Iterator<Item = T> + Frayed) {
+    for subiter in &frayed.chunk() {
+        for i in subiter {
+            print!("{} ", i);
+        }
+    }
+}
+```
+
+But it would be even better if producers kept their frayed iterators under the
+covers and then exposed the abstractions that we're all used to.
+
+```ignore rust
+fn chunks(&self) -> frayed::Chunk<Iter> {
+    // ...
+}
+
+fn consume<T: std::fmt::Display>(iters: Chunk<Iter>) {
+    for subiter in &iters {
+        for i in subiter {
+            print!("{} ", i);
+        }
+    }
+}
+
+```
+
+
 
 
 [Fuse]: https://doc.rust-lang.org/std/iter/struct.Fuse.html
 [fuse]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fuse
+
+[^0]: Rust iterators have a wonderfully succinct trait. 
+
+[^1]: See [GroupBy](https://docs.rs/itertools/latest/itertools/structs/struct.GroupBy.html) implementation in itertools for an example.

@@ -1,8 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/frayed/0.1.0")]
 #![doc = include_str!("../README.md")]
 pub mod fraught;
-pub mod frayed;
-use frayed::chunk;
+pub mod chunk;
 use fraught::prefix::Prefix;
 
 /// Marker trait
@@ -17,13 +16,15 @@ pub struct FrayedIter<I: Iterator> {
 pub trait FrayedTools: Frayed {
     /// Turn a frayed iterator into an iterator of iterator, that is, "chunks"
     /// that are no longer frayed.
-    fn chunk(self) -> frayed::Chunk<Self>
+    fn chunk(self) -> chunk::Chunk<Self>
     where
         Self: Sized,
     {
         chunk::new(self)
     }
 }
+
+impl<T> FrayedTools for T where T: Frayed + ?Sized {}
 
 /// Fraught tools operate on regular iterators but may accept or return `Frayed`
 /// iterators.
@@ -48,7 +49,6 @@ pub trait FraughtTools: Iterator {
 }
 
 impl<T> FraughtTools for T where T: Iterator + ?Sized {}
-impl<T> FrayedTools for T where T: Frayed + ?Sized {}
 
 impl<I: Iterator> Iterator for FrayedIter<I> {
     type Item = I::Item;
