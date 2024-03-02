@@ -10,7 +10,11 @@ pub struct Prefix<I, J: Iterator> {
 impl<I, J> Prefix<I, J>
 where
     I: Iterator + Clone,
-    J: Frayed<Item = I::Item>,
+    // We could restrict this but we'll restric the extension, not the actual
+    // implementations.
+    //
+    // J: Frayed<Item = I::Item>,
+    J: Iterator<Item = I::Item>,
 {
     pub fn new(prefix: I, iter: J) -> Self {
         let mut peekable = iter.peekable();
@@ -46,7 +50,8 @@ where
 impl<I, J> Iterator for Prefix<I, J>
 where
     I: Iterator + Clone,
-    J: Frayed<Item = I::Item>,
+    // J: Frayed<Item = I::Item>,
+    J: Iterator<Item = I::Item>,
 {
     type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {

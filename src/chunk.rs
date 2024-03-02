@@ -1,5 +1,4 @@
 // use alloc::vec::{self, Vec};
-use crate::{FraughtTools, Frayed, FrayedTools};
 use std::cell::{Cell, RefCell};
 use std::vec;
 
@@ -259,32 +258,33 @@ where
 // impl<T: ?Sized> IntoIteratorTools for T where T: IntoIterator {}
 
 /// Create a new
-pub fn new<J>(iter: J) -> Chunk<J::IntoIter>
-where
-    J: IntoIterator,
-{
-    Chunk {
-        inner: RefCell::new(ChunkInner {
-            // key: f,
-            iter: iter.into_iter(),
-            current_index: 0,
-            current_elt: None,
-            done: false,
-            last_was_none: false,
-            top_group: 0,
-            oldest_buffered_group: 0,
-            bottom_group: 0,
-            buffer: Vec::new(),
-            dropped_group: !0,
-        }),
-        index: Cell::new(0),
-    }
-}
 
 impl<I> Chunk<I>
 where
     I: Iterator,
 {
+    pub fn new<J>(iter: J) -> Chunk<I>
+    where
+        J: IntoIterator<IntoIter = I>,
+    {
+        Chunk {
+            inner: RefCell::new(ChunkInner {
+                // key: f,
+                iter: iter.into_iter(),
+                current_index: 0,
+                current_elt: None,
+                done: false,
+                last_was_none: false,
+                top_group: 0,
+                oldest_buffered_group: 0,
+                bottom_group: 0,
+                buffer: Vec::new(),
+                dropped_group: !0,
+            }),
+            index: Cell::new(0),
+        }
+    }
+
     /// `client`: Index of group that requests next element
     fn step(&self, client: usize) -> Option<I::Item> {
         self.inner.borrow_mut().step(client)
@@ -298,6 +298,7 @@ where
     pub fn into_inner(self) -> I {
         self.inner.into_inner().iter
     }
+
 }
 
 impl<'a, I> IntoIterator for &'a Chunk<I>
@@ -388,6 +389,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{FraughtTools, Frayed, FrayedTools};
     use super::*;
 
     #[test]

@@ -1,7 +1,8 @@
 #![doc(html_root_url = "https://docs.rs/frayed/0.1.0")]
 #![doc = include_str!("../README.md")]
 pub mod fraught;
-pub mod chunk;
+mod chunk;
+pub use chunk::Chunk;
 use fraught::prefix::Prefix;
 
 /// Marker trait
@@ -20,7 +21,7 @@ pub trait FrayedTools: Frayed {
     where
         Self: Sized,
     {
-        chunk::new(self)
+        Chunk::new(self)
     }
 }
 
