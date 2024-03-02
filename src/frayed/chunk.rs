@@ -400,6 +400,7 @@ mod tests {
     }
 
     struct SevenIter(u8);
+    /// SevenIter(0) returns 1, 2, None, 3, 4, None, 7, None, None, ...
     impl Iterator for SevenIter {
         type Item = u8;
         fn next(&mut self) -> Option<u8> {
@@ -407,6 +408,7 @@ mod tests {
             (self.0 % 3 != 0 && self.0 <= 7).then_some(self.0)
         }
     }
+    /// Mark iterator as `Frayed`
     impl Frayed for SevenIter {}
 
     #[test]
