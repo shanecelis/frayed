@@ -1,5 +1,5 @@
 // use alloc::vec::{self, Vec};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, RefCell, Ref};
 use std::vec;
 
 #[derive(Clone)]
@@ -218,30 +218,33 @@ where
     index: Cell<usize>,
 }
 
-// pub struct Map<I,F> {
-//     into: I,
-//     f: F,
-// }
+pub struct Map<'a, I: Iterator,F> {
+    into: &'a Chunk<I>,
+    f: F,
+}
 
-// impl<I,F> Map<I,F> {
-//     pub fn new(into: I, f: F) -> Self {
-//         Self {
-//             into,
-//             f,
-//         }
-//     }
-// }
+impl<'a, B, I: Iterator, F> Map<'a, I,F>
+    where
+    F: FnMut(Group<I>) -> B {
+    pub fn new(into: &'a Chunk<I>, f: F) -> Self {
+        Self {
+            into,
+            f,
+        }
+    }
+}
 
-// impl<B, I: IntoIterator, F> IntoIterator for Map<I,F>
-//     where
-//     F: FnMut(I::Item) -> B {
-//     type Item = B;
-//     type IntoIter = std::iter::Map<I::IntoIter, F>;
+impl<'a, B, I: Iterator, F> IntoIterator for &'a Map<'a, I,F>
+    where
+    F: FnMut(Group<'a, I>) -> B + Clone {
 
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.into.into_iter().map(self.f)
-//     }
-// }
+    type Item = B;
+    type IntoIter = std::iter::Map<Groups<'a, I>, F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into.into_iter().map(self.f.clone())
+    }
+}
 
 // pub trait IntoIteratorTools: IntoIterator {
 //     fn map_into<B, F>(self, f: F) -> Map<Self, F>
@@ -295,8 +298,17 @@ where
         self.inner.borrow_mut().drop_group(client);
     }
 
+    pub fn map<'a, F, B>(&'a self, f: F) -> Map<'a, I, F>
+        where F: Fn(Group<I>) -> B {
+        Map::new(self, f)
+    }
+
     pub fn into_inner(self) -> I {
         self.inner.into_inner().iter
+    }
+
+    pub fn iter_ref(&self) -> Ref<'_, I> {
+        Ref::map(self.inner.borrow(), |x| &x.iter)
     }
 
 }
@@ -501,5 +513,13 @@ mod tests {
         assert_eq!(v, [4, 5]);
         let v: Vec<_> = first.collect();
         assert_eq!(v, [1, 2]);
+    }
+
+    #[test]
+    fn split_map() {
+        let chunk = SevenIter(0).chunk();
+        let split= chunk.map(|x| x.sum::<u8>());
+        let v: Vec<u8> = split.into_iter().collect();
+        assert_eq!(v, vec![3, 9, 7]);
     }
 }
