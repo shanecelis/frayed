@@ -1,4 +1,7 @@
 # Frayed
+![Maintenance](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)
+  [![crates-io](https://img.shields.io/crates/v/frayed.svg)](https://crates.io/crates/frayed)
+  [![api-docs](https://docs.rs/frayed/badge.svg)](https://docs.rs/frayed)
 
 Unfused and unashamed iterators under the hood, conventional iterators out the
 door
