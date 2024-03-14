@@ -124,8 +124,8 @@ allocating and collecting a `Vec` is not essential or desired. However, writing 
 respect the API that entails, e.g., the `SubIter`s can be consumed out of order
 or dropped.
 
-If one writes instead a "frayed" iterator `Iterator<Item = T>`--where the
-`None` represents the end of a subsequence not the end of the iterator--that is
+If one writes instead a "frayed" iterator `Iterator<Item = T>`—where the
+`None` represents the end of a subsequence not the end of the iterator—that is
 often much easier. One can consume these iterators with a some care but they
 remain unconventional and surprising.
 
