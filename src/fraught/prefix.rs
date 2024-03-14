@@ -46,9 +46,9 @@ where
         }
     }
 
-    fn inner_ref(&self) -> &I {
-        &self.prefix
-    }
+    // fn inner_ref(&self) -> &I {
+    //     &self.prefix
+    // }
 }
 
 impl<I, J> Iterator for Prefix<I, J>

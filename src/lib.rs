@@ -1,8 +1,8 @@
 #![doc(html_root_url = "https://docs.rs/frayed/0.1.0")]
 #![doc = include_str!("../README.md")]
 pub mod fraught;
-mod chunk;
-pub use chunk::Chunk;
+pub mod defray;
+pub use defray::Defray;
 use fraught::prefix::Prefix;
 
 /// Marker trait
@@ -15,13 +15,13 @@ pub struct FrayedIter<I: Iterator> {
 
 /// Frayed tools only operate on iterators marked as `Frayed`.
 pub trait FrayedTools: Frayed {
-    /// Turn a frayed iterator into an iterator of iterator, that is, "chunks"
-    /// that are no longer frayed.
-    fn chunk(self) -> chunk::Chunk<Self>
+    /// Turn a frayed iterator into an iterator of iterator, that is, de-fray
+    /// it.
+    fn defray(self) -> Defray<Self>
     where
         Self: Sized,
     {
-        Chunk::new(self)
+        Defray::new(self)
     }
 }
 

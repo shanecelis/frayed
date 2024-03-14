@@ -60,13 +60,21 @@ impl Iterator for SevenIter {
 
 /// Mark iterator with `.frayed() or impl the `Frayed` marker trait.
 let frayed_iter = SevenIter(0).frayed();
-/// Deal with the frayed iterator in its natural "chunks."
-for subiter in &frayed_iter.chunk() {
+/// Defray the frayed iterator into an iterator of iterators.
+for subiter in &frayed_iter.defray() {
     for i in subiter {
         print!("{i} ");
     }
     println!()
 }
+```
+
+The above will produce this output
+
+``` text
+1 2 
+4 5
+7 
 ```
 
 # Extensions 
@@ -88,23 +96,24 @@ Because dealing with an iterator that conceptually represents many iterators is
 confusing: Sometimes you want to map over all the elements. Sometimes you want
 to map over the subsequences. This way the compiler can help us.
 
-For instance if we forget to mark our iterator as "frayed", we can't "chunk" it.
+For instance if we forget to mark our iterator as "frayed", we can't "defray" it.
 
 ``` ignore rust
 let frayed_iter = SevenIter(0); // .frayed();
-let _ = &frayed_iter.chunk(); // Not marked frayed. No `chunk()` method.
+let _ = &frayed_iter.defray(); // Not marked frayed. No `defray()` method.
 ```
 
-## Chunk isn't an iterator. How can I "map" over it?
+## Defray isn't an iterator. How can I "map" over it?
 
-`Chunk` implements `IntoIterator` for `&Chunk`. The problems appear when one
-wants to return a `Chunk` but say `.map()` its output. If one can do what they
-need with the underlying frayed iterator, use `chunk.into_inner()` to retrieve
-it, process it, and consider `.chunk()`-ing it again. 
+`Defray` implements `IntoIterator` for `&Defray`. The problems appear when one
+wants to return a `Defray` but say `.map()` its output. If one can do what they
+need with the underlying frayed iterator, use `defrayed.into_inner()` to
+retrieve it, process it, and consider `.defray()`-ing it again.
 
 If one wants to process the iterators and not the underlying elements, that
-remains an open question as to how best to do that. Perhaps `Chunk` itself
-could provide a `map<F,Y>(self, f: F) -> Map<Chunk<Iter<Item=X>>, F, Y> where F: FnMut(Iter<Item=X>) -> Y)` function.
+remains an open question as to how best to do that. Perhaps `Defray` itself
+could provide a `map<F,Y>(self, f: F) -> Map<Defray<Iter<Item=X>>, F, Y> where
+F: FnMut(Iter<Item=X>) -> Y)` function.
 
 # Motivation
 
@@ -143,7 +152,7 @@ to be consumed by the uninitiated. Consider instead this code:
 ```compile rust
 use frayed::*;
 fn raw_consume_frayed<T: std::fmt::Display>(frayed: impl Iterator<Item = T> + Frayed) {
-    for subiter in &frayed.chunk() {
+    for subiter in &frayed.defray() {
         for i in subiter {
             print!("{} ", i);
         }
@@ -155,12 +164,13 @@ But it would be even better if producers kept their frayed iterators under the
 covers and then exposed the abstractions that we're all used to.
 
 ```ignore rust
-fn chunks(&self) -> frayed::Chunk<Iter> {
+fn chunks(&self) -> frayed::Defray<Iter> {
     // ...
 }
 
-fn consume<T: std::fmt::Display>(iters: Chunk<Iter>) {
-    for subiter in &iters {
+fn main() {
+    let obj = ...;
+    for subiter in &obj.chunks() {
         for i in subiter {
             print!("{} ", i);
         }

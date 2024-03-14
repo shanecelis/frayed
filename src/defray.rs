@@ -3,7 +3,7 @@ use std::cell::{Cell, RefCell, Ref};
 use std::vec;
 
 #[derive(Clone)]
-struct ChunkInner<I>
+struct DefrayInner<I>
 where
     I: Iterator,
 {
@@ -27,7 +27,7 @@ where
     dropped_group: usize,
 }
 
-impl<I> ChunkInner<I>
+impl<I> DefrayInner<I>
 where
     I: Iterator,
 {
@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<I> ChunkInner<I>
+impl<I> DefrayInner<I>
 where
     I: Iterator,
 {
@@ -194,10 +194,10 @@ where
     }
 }
 
-/// `Chunk` is the storage for the lazy grouping operation.
+/// `Defray` is the storage for the lazy grouping operation.
 ///
 /// If the groups are consumed in their original order, or if each
-/// group is dropped without keeping it around, then `Chunk` uses
+/// group is dropped without keeping it around, then `Defray` uses
 /// no allocations. It needs allocations only if several group iterators
 /// are alive at the same time.
 ///
@@ -208,25 +208,25 @@ where
 ///
 /// See [`.group_by()`](crate::Itertools::group_by) for more information.
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-pub struct Chunk<I>
+pub struct Defray<I>
 where
     I: Iterator,
 {
-    inner: RefCell<ChunkInner<I>>,
+    inner: RefCell<DefrayInner<I>>,
     // the group iterator's current index. Keep this in the main value
     // so that simultaneous iterators all use the same state.
     index: Cell<usize>,
 }
 
 pub struct Map<'a, I: Iterator,F> {
-    into: &'a Chunk<I>,
+    into: &'a Defray<I>,
     f: F,
 }
 
 impl<'a, B, I: Iterator, F> Map<'a, I,F>
     where
     F: FnMut(Group<I>) -> B {
-    pub fn new(into: &'a Chunk<I>, f: F) -> Self {
+    pub fn new(into: &'a Defray<I>, f: F) -> Self {
         Self {
             into,
             f,
@@ -246,32 +246,18 @@ impl<'a, B, I: Iterator, F> IntoIterator for &'a Map<'a, I,F>
     }
 }
 
-// pub trait IntoIteratorTools: IntoIterator {
-//     fn map_into<B, F>(self, f: F) -> Map<Self, F>
-//         where Self: Sized,
-//         F: FnMut(Self::Item) -> B,
-//     {
-//         Map {
-//             into: self,
-//             f,
-//         }
-//     }
-// }
-
-// impl<T: ?Sized> IntoIteratorTools for T where T: IntoIterator {}
-
 /// Create a new
 
-impl<I> Chunk<I>
+impl<I> Defray<I>
 where
     I: Iterator,
 {
-    pub fn new<J>(iter: J) -> Chunk<I>
+    pub fn new<J>(iter: J) -> Defray<I>
     where
         J: IntoIterator<IntoIter = I>,
     {
-        Chunk {
-            inner: RefCell::new(ChunkInner {
+        Defray {
+            inner: RefCell::new(DefrayInner {
                 // key: f,
                 iter: iter.into_iter(),
                 current_index: 0,
@@ -313,7 +299,7 @@ where
 
 }
 
-impl<'a, I> IntoIterator for &'a Chunk<I>
+impl<'a, I> IntoIterator for &'a Defray<I>
 where
     I: Iterator,
     I::Item: 'a,
@@ -338,7 +324,7 @@ where
     I: Iterator,
     I::Item: 'a,
 {
-    parent: &'a Chunk<I>,
+    parent: &'a Defray<I>,
 }
 
 impl<'a, I> Iterator for Groups<'a, I>
@@ -369,7 +355,7 @@ where
     I: Iterator,
     I::Item: 'a,
 {
-    parent: &'a Chunk<I>,
+    pub parent: &'a Defray<I>,
     index: usize,
     first: Option<I::Item>,
 }
@@ -428,7 +414,7 @@ mod tests {
     #[test]
     fn test_prefix() {
         let v = vec![1, 2, 3];
-        let split = v.into_iter().prefix(SevenIter(0)).chunk();
+        let split = v.into_iter().prefix(SevenIter(0)).defray();
         let mut iters = split.into_iter();
         let first = iters.next().unwrap();
         let second = iters.next().unwrap();
@@ -445,10 +431,10 @@ mod tests {
     }
 
     #[test]
-    fn chunk_unfused() {
+    fn defray_unfused() {
         let v: Vec<_> = SevenIter(0).collect();
         assert_eq!(v, [1, 2]);
-        let split = SevenIter(0).chunk();
+        let split = SevenIter(0).defray();
         let mut iters = split.into_iter();
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
@@ -463,16 +449,16 @@ mod tests {
         assert!(iters.next().is_none());
     }
 
-    /// Cannot call `.chunk()` unless it's a Frayed iterator.
+    /// Cannot call `.defray()` unless it's a Frayed iterator.
     ///
     /// ```compile_fail
-    /// let split = SevenIter(0).fuse().chunk();
+    /// let split = SevenIter(0).fuse().defray();
     /// ```
     #[test]
     fn split_unfused_on_fused() {
-        // chunk_unfused() on a fused iterator will only have one iterator
+        // defray_unfused() on a fused iterator will only have one iterator
         // and is a kind of identity operator.
-        // let split = SevenIter(0).fuse().chunk();
+        // let split = SevenIter(0).fuse().defray();
         // let mut iters = split.into_iter();
         // let first = iters.next().unwrap();
         // assert_eq!(first.collect::<Vec<_>>(), [1, 2]);
@@ -483,7 +469,7 @@ mod tests {
     fn split_unfused_drop_second() {
         let v: Vec<_> = SevenIter(0).collect();
         assert_eq!(v, [1, 2]);
-        let split = SevenIter(0).chunk();
+        let split = SevenIter(0).defray();
         let mut iters = split.into_iter();
         let iter = iters.next().unwrap();
         let v: Vec<_> = iter.collect();
@@ -499,7 +485,7 @@ mod tests {
 
     #[test]
     fn split_unfused_out_of_order() {
-        let split = SevenIter(0).chunk();
+        let split = SevenIter(0).defray();
         let mut iters = split.into_iter();
         let first = iters.next().unwrap();
         let second = iters.next().unwrap();
@@ -517,8 +503,8 @@ mod tests {
 
     #[test]
     fn split_map() {
-        let chunk = SevenIter(0).chunk();
-        let split= chunk.map(|x| x.sum::<u8>());
+        let defray = SevenIter(0).defray();
+        let split= defray.map(|x| x.sum::<u8>());
         let v: Vec<u8> = split.into_iter().collect();
         assert_eq!(v, vec![3, 9, 7]);
     }
