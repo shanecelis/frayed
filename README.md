@@ -182,9 +182,6 @@ fn main() {
 
 ```
 
-
-
-
 [Fuse]: https://doc.rust-lang.org/std/iter/struct.Fuse.html
 [fuse]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fuse
 
