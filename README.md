@@ -11,7 +11,7 @@ door
 Rust iterators[^0] come in a few varieties: fused, unfused, and now frayed. The variety
 is determined by how it behaves after `.next()` returns `None`.
 
-```
+```rust ignore
 pub trait Iterator {
     type Item;
     fn next(&mut self) -> Option<Self::Item>;
@@ -45,7 +45,7 @@ Suppose we have an iterator that represents multiple sequences. For instance
 `SevenIter`is a unfused iterator that represents these sequences: `[1, 2]`, `[4,
 5]`, and `[7]`.
 
-```compile rust
+```rust compile
 use frayed::{Frayed, FrayedTools, FraughtTools};
 
 /// This iterator skips every number divisible by 3 up to seven.
@@ -74,7 +74,7 @@ for subiter in &frayed_iter.defray() {
 
 The above will produce this output
 
-``` text
+```text
 1 2 
 4 5
 7 
