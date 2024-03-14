@@ -129,7 +129,7 @@ If one writes instead a "frayed" iterator `Iterator<Item = T>`—where the
 often much easier. One can consume these iterators with a some care but they
 remain unconventional and surprising.
 
-```compile rust
+```rust compile
 fn raw_consume_unfused<T: std::fmt::Display>(frayed: impl Iterator<Item = T>) {
     let mut frayed = frayed.peekable();
     loop {
@@ -149,7 +149,7 @@ fn raw_consume_unfused<T: std::fmt::Display>(frayed: impl Iterator<Item = T>) {
 The initial motivation of this crate is to make it easy for "frayed" iterators
 to be consumed by the uninitiated. Consider instead this code:
 
-```compile rust
+```rust compile
 use frayed::*;
 fn raw_consume_frayed<T: std::fmt::Display>(frayed: impl Iterator<Item = T> + Frayed) {
     for subiter in &frayed.defray() {
@@ -163,7 +163,7 @@ fn raw_consume_frayed<T: std::fmt::Display>(frayed: impl Iterator<Item = T> + Fr
 But it would be even better if producers kept their frayed iterators under the
 covers and then exposed the abstractions that we're all used to.
 
-```ignore rust
+```rust ignore
 fn chunks(&self) -> frayed::Defray<Iter> {
     // ...
 }
