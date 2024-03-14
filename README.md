@@ -98,7 +98,7 @@ to map over the subsequences. This way the compiler can help us.
 
 For instance if we forget to mark our iterator as "frayed", we can't "defray" it.
 
-``` ignore rust
+```rust compile_fail
 let frayed_iter = SevenIter(0); // .frayed();
 let _ = &frayed_iter.defray(); // Not marked frayed. No `defray()` method.
 ```
